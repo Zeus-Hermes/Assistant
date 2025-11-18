@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from backend.config import settings
 from backend.logger import logger
+from memory.embeddings import auto_embedding_client
 from memory.models import Memory, ConversationMemory, Entity, MemoryCategory
 
 
@@ -68,6 +69,13 @@ class MemoryService:
                 "context": memory.context
             }
 
+            try:
+                embedding = auto_embedding_client.store_embedding(memory.fact)
+                if embedding:
+                    data["embedding"] = embedding
+            except Exception as embed_err:
+                logger.error(f"Embedding generation failed for memory {memory.id}: {embed_err}")
+
             self._request("POST", "memories", data=data)
             logger.info(f"Saved memory: {memory.fact[:50]}...")
             return memory
@@ -125,6 +133,12 @@ class MemoryService:
                 }
                 result = self._request("GET", "memories", params=params)
                 return result if isinstance(result, list) else []
+
+            # Attempt semantic search first
+            semantic_matches = auto_embedding_client.search_embeddings(query, limit=limit)
+            if semantic_matches:
+                logger.info(f"Semantic search returned {len(semantic_matches)} results")
+                return semantic_matches
 
             # Get all high-importance memories and filter client-side
             params = {

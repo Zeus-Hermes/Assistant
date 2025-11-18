@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     # LLM Settings
     groq_api_key: str
     groq_model: str = "llama-3.1-70b-versatile"
+    groq_embeddings_model: str = "nomic-embed-text"
+
+    # OpenAI (optional embeddings)
+    openai_api_key: Optional[str] = None
+    openai_embeddings_model: str = "text-embedding-3-small"
 
     # Tool API Keys
     google_maps_api_key: str  # Google Maps Platform (Weather + Places + Geocoding)
@@ -24,6 +29,17 @@ class Settings(BaseSettings):
     spotify_client_id: str
     spotify_client_secret: str
     spotify_refresh_token: str
+
+    # Google OAuth (Gmail + Calendar)
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    google_refresh_token: Optional[str] = None
+    google_oauth_redirect_uri: Optional[str] = None
+
+    # ElevenLabs (TTS)
+    elevenlabs_api_key: Optional[str] = None
+    elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"  # Default premade voice
+    enable_voice: bool = False
 
     # User Settings
     default_location: str = "McKinney, Texas"  # Default location for "near me" queries

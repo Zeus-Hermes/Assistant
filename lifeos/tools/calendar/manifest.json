@@ -1,0 +1,68 @@
+{
+  "name": "calendar",
+  "version": "1.0",
+  "description": "Google Calendar tools for LifeOS",
+  "tools": [
+    {
+      "name": "calendar.list_events",
+      "description": "List calendar events within a date range",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "time_min": {"type": "string", "description": "ISO start date"},
+          "time_max": {"type": "string", "description": "ISO end date"},
+          "max_results": {"type": "integer", "description": "Maximum events", "default": 10}
+        },
+        "required": ["time_min", "time_max"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "events": {"type": "array", "items": {"type": "object"}}
+        }
+      },
+      "function": "list_events"
+    },
+    {
+      "name": "calendar.create_event",
+      "description": "Create a calendar event",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "datetime_start": {"type": "string", "description": "Start datetime ISO"},
+          "datetime_end": {"type": "string", "description": "End datetime ISO"},
+          "description": {"type": "string"},
+          "location": {"type": "string"}
+        },
+        "required": ["title", "datetime_start", "datetime_end"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {"type": "string"},
+          "html_link": {"type": "string"}
+        }
+      },
+      "function": "create_event"
+    },
+    {
+      "name": "calendar.delete_event",
+      "description": "Delete a calendar event",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {"type": "string", "description": "Event identifier"}
+        },
+        "required": ["event_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "deleted": {"type": "boolean"}
+        }
+      },
+      "function": "delete_event"
+    }
+  ]
+}

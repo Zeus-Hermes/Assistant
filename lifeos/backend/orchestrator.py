@@ -11,6 +11,7 @@ from backend.tool_registry import tool_registry
 from backend.logger import logger
 from backend.token_counter import token_counter
 from backend.summarizer import conversation_summarizer
+from backend.config import settings
 
 
 class Orchestrator:
@@ -292,6 +293,14 @@ Facts:"""
             tool_outputs=tool_outputs
         )
 
+        audio_url = None
+        if settings.enable_voice and final_response:
+            try:
+                from voice.tts import generate_audio
+                audio_url = generate_audio(final_response)
+            except Exception as e:
+                logger.error(f"Audio generation failed: {e}")
+
         # Save to memory (non-blocking)
         try:
             self._save_to_memory(user_request, final_response, tool_outputs)
@@ -302,7 +311,8 @@ Facts:"""
             "request": user_request,
             "tool_calls": tool_calls,
             "tool_outputs": tool_outputs,
-            "response": final_response
+            "response": final_response,
+            "audio_url": audio_url
         }
 
 
