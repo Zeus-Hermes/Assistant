@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 from backend.config import settings
 from backend.logger import logger
 from memory.models import Memory, ConversationMemory, Entity, MemoryCategory
+from memory.embeddings import generate_embedding
 
 
 class MemoryService:
@@ -65,7 +66,8 @@ class MemoryService:
                 "category": memory.category.value if hasattr(memory.category, 'value') else memory.category,
                 "importance": memory.importance,
                 "tags": memory.tags,
-                "context": memory.context
+                "context": memory.context,
+                "embedding": generate_embedding(memory.fact)
             }
 
             self._request("POST", "memories", data=data)
@@ -109,9 +111,27 @@ class MemoryService:
             logger.error(f"Failed to retrieve memories: {e}")
             return []
 
+    def search_embeddings(self, query_text: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """Search memories using embedding similarity"""
+        try:
+            query_embedding = generate_embedding(query_text)
+            params = {
+                "select": f"*,similarity:embedding<->{json.dumps(query_embedding)}",
+                "order": "similarity.asc",
+                "limit": str(limit)
+            }
+
+            result = self._request("GET", "memories", params=params)
+            return result if isinstance(result, list) else []
+        except Exception as e:
+            logger.error(f"Embedding search failed: {e}")
+            return []
+
     def search_memories(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Search memories by extracting keywords and matching against fact + tags"""
         try:
+            embedding_results = self.search_embeddings(query, limit=limit)
+
             # Extract keywords from query (remove common words)
             stop_words = {'what', 'is', 'my', 'the', 'a', 'an', 'are', 'hey', 'bud', 'whats', 'do', 'does'}
             keywords = [w.lower().strip() for w in query.split() if w.lower().strip() not in stop_words and len(w) > 2]
@@ -124,42 +144,53 @@ class MemoryService:
                     "limit": str(limit)
                 }
                 result = self._request("GET", "memories", params=params)
-                return result if isinstance(result, list) else []
+                keyword_memories = result if isinstance(result, list) else []
+            else:
+                # Get all high-importance memories and filter client-side
+                params = {
+                    "importance": "gte.5",
+                    "order": "importance.desc",
+                    "limit": "20"  # Get more to filter
+                }
 
-            # Get all high-importance memories and filter client-side
-            params = {
-                "importance": "gte.5",
-                "order": "importance.desc",
-                "limit": "20"  # Get more to filter
-            }
+                result = self._request("GET", "memories", params=params)
+                all_memories = result if isinstance(result, list) else []
 
-            result = self._request("GET", "memories", params=params)
-            all_memories = result if isinstance(result, list) else []
+                # Score each memory based on keyword matches
+                scored_memories = []
+                for mem in all_memories:
+                    score = 0
+                    fact_lower = mem['fact'].lower()
+                    mem_tags = [t.lower() for t in mem.get('tags', [])]
 
-            # Score each memory based on keyword matches
-            scored_memories = []
-            for mem in all_memories:
-                score = 0
-                fact_lower = mem['fact'].lower()
-                mem_tags = [t.lower() for t in mem.get('tags', [])]
+                    for keyword in keywords:
+                        # Check fact
+                        if keyword in fact_lower:
+                            score += 2
+                        # Check tags
+                        if any(keyword in tag for tag in mem_tags):
+                            score += 3  # Tags are more specific
 
-                for keyword in keywords:
-                    # Check fact
-                    if keyword in fact_lower:
-                        score += 2
-                    # Check tags
-                    if any(keyword in tag for tag in mem_tags):
-                        score += 3  # Tags are more specific
+                    if score > 0:
+                        scored_memories.append((score, mem))
 
-                if score > 0:
-                    scored_memories.append((score, mem))
+                # Sort by score and return top results
+                scored_memories.sort(reverse=True, key=lambda x: x[0])
+                keyword_memories = [mem for score, mem in scored_memories[:limit]]
 
-            # Sort by score and return top results
-            scored_memories.sort(reverse=True, key=lambda x: x[0])
-            memories = [mem for score, mem in scored_memories[:limit]]
+            combined_memories = []
+            seen_ids = set()
 
-            logger.info(f"Found {len(memories)} memories for query: {query} (keywords: {keywords})")
-            return memories
+            for mem in embedding_results + keyword_memories:
+                mem_id = mem.get("id")
+                if mem_id not in seen_ids:
+                    combined_memories.append(mem)
+                    seen_ids.add(mem_id)
+
+            combined_memories = combined_memories[:limit]
+
+            logger.info(f"Found {len(combined_memories)} memories for query: {query} (keywords: {keywords})")
+            return combined_memories
 
         except Exception as e:
             logger.error(f"Memory search failed: {e}")
