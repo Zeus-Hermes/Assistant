@@ -1,0 +1,38 @@
+{
+  "name": "weather.get_weather",
+  "version": "2.0",
+  "description": "Get current weather conditions, hourly forecasts, or daily forecasts for any location using Google Weather API",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "location": {
+        "type": "string",
+        "description": "City name, address, or 'current location' (e.g., 'Dallas', 'Dallas, TX', 'McKinney, Texas')"
+      },
+      "forecast_type": {
+        "type": "string",
+        "enum": ["current", "hourly", "daily"],
+        "description": "Type of weather info: 'current' (now), 'hourly' (next hours), 'daily' (next days). Default: current"
+      },
+      "hours": {
+        "type": "integer",
+        "description": "For hourly: number of hours to forecast (1-240). Default: 6"
+      },
+      "days": {
+        "type": "integer",
+        "description": "For daily: number of days to forecast (1-10). Default: 3"
+      }
+    },
+    "required": ["location"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "location": {"type": "string"},
+      "forecast_type": {"type": "string"},
+      "current": {"type": "object"},
+      "hourly_forecast": {"type": "array"},
+      "daily_forecast": {"type": "array"}
+    }
+  }
+}

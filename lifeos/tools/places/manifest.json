@@ -1,0 +1,63 @@
+{
+  "name": "places.search_places",
+  "version": "1.0",
+  "description": "Search for nearby places like restaurants, coffee shops, gas stations, gyms, etc. Can search by type, keyword, or both.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Search query or keyword (e.g., 'coffee shops', 'italian restaurants', 'gas stations')"
+      },
+      "location": {
+        "type": "string",
+        "description": "Location to search near. Can be 'current location', city name, or address. If not provided, uses user's default location."
+      },
+      "radius": {
+        "type": "integer",
+        "description": "Search radius in meters (default: 5000, max: 50000). 1 mile ≈ 1609 meters"
+      },
+      "type": {
+        "type": "string",
+        "description": "Place type filter (e.g., 'restaurant', 'cafe', 'gas_station', 'gym', 'bar', 'pharmacy'). Full list: https://developers.google.com/maps/documentation/places/web-service/supported_types"
+      },
+      "open_now": {
+        "type": "boolean",
+        "description": "If true, only return places that are currently open"
+      },
+      "min_rating": {
+        "type": "number",
+        "description": "Minimum rating (1.0-5.0) to filter results"
+      },
+      "max_results": {
+        "type": "integer",
+        "description": "Maximum number of results to return (default: 5, max: 20)"
+      }
+    },
+    "required": ["query"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "query": {"type": "string"},
+      "location": {"type": "string"},
+      "results": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "address": {"type": "string"},
+            "rating": {"type": "number"},
+            "user_ratings_total": {"type": "integer"},
+            "price_level": {"type": "string"},
+            "open_now": {"type": "boolean"},
+            "distance_meters": {"type": "number"},
+            "types": {"type": "array"},
+            "place_id": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

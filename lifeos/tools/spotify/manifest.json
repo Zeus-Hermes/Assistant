@@ -1,0 +1,31 @@
+{
+  "name": "spotify.control",
+  "version": "1.0",
+  "description": "Control Spotify playback - play music by search query (song/artist/playlist), pause, resume, skip tracks, adjust volume, or get current track info",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["play", "pause", "resume", "skip", "previous", "volume", "current_track"],
+        "description": "Action to perform: 'play' (search and play), 'pause', 'resume', 'skip', 'previous', 'volume', 'current_track'"
+      },
+      "query": {
+        "type": "string",
+        "description": "For 'play' action: what to search for and play (song, artist, album, or playlist name)"
+      },
+      "type": {
+        "type": "string",
+        "enum": ["track", "artist", "album", "playlist"],
+        "description": "For 'play' action: type of content (optional, will auto-detect)"
+      },
+      "volume": {
+        "type": "integer",
+        "description": "For 'volume' action: volume level 0-100",
+        "minimum": 0,
+        "maximum": 100
+      }
+    },
+    "required": ["action"]
+  }
+}

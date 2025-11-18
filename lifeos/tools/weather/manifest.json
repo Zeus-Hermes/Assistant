@@ -1,0 +1,24 @@
+{
+  "name": "weather.get_weather",
+  "version": "1.0",
+  "description": "Get current weather conditions for a location",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "location": {
+        "type": "string",
+        "description": "City name or 'City, State' or 'City, Country'"
+      }
+    },
+    "required": ["location"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "temperature": {"type": "number"},
+      "condition": {"type": "string"},
+      "humidity": {"type": "number"},
+      "wind_speed": {"type": "number"}
+    }
+  }
+}

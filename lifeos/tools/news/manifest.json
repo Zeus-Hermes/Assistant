@@ -1,0 +1,39 @@
+{
+  "name": "news.get_news",
+  "version": "1.0",
+  "description": "Get top news headlines, optionally filtered by category or query",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Optional search query for specific news topics"
+      },
+      "category": {
+        "type": "string",
+        "description": "Optional category: business, entertainment, health, science, sports, technology"
+      },
+      "limit": {
+        "type": "integer",
+        "description": "Number of articles to return (default 5)"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "articles": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": {"type": "string"},
+            "description": {"type": "string"},
+            "source": {"type": "string"},
+            "url": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}
