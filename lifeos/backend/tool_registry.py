@@ -14,8 +14,11 @@ from backend.logger import logger
 class ToolRegistry:
     """Manages tool discovery, loading, and execution"""
 
-    def __init__(self, tools_dir: str = "tools"):
-        self.tools_dir = Path(tools_dir)
+    def __init__(self, tools_dir: str = None):
+        if tools_dir:
+            self.tools_dir = Path(tools_dir)
+        else:
+            self.tools_dir = Path(__file__).parent.parent / "tools"
         self.tools: Dict[str, Dict[str, Any]] = {}
         self.tool_functions: Dict[str, Callable] = {}
 
@@ -46,30 +49,45 @@ class ToolRegistry:
                 with open(manifest_path, 'r') as f:
                     manifest = json.load(f)
 
-                tool_name = manifest.get("name")
-                if not tool_name:
-                    logger.error(f"Tool {tool_dir.name} missing 'name' in manifest")
-                    continue
-
-                # Load Python module
                 module_path = tool_dir / f"{tool_dir.name}.py"
                 if not module_path.exists():
-                    logger.error(f"Tool {tool_name} missing implementation file")
+                    logger.error(f"Tool implementation missing for {tool_dir.name}")
                     continue
 
-                spec = importlib.util.spec_from_file_location(tool_name, module_path)
+                spec = importlib.util.spec_from_file_location(tool_dir.name, module_path)
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
 
-                if not hasattr(module, 'execute'):
-                    logger.error(f"Tool {tool_name} missing execute() function")
-                    continue
+                manifest_tools = manifest.get("tools")
 
-                # Register tool
-                self.tools[tool_name] = manifest
-                self.tool_functions[tool_name] = module.execute
+                # Support legacy single-tool manifests
+                if not manifest_tools:
+                    manifest_tools = [{
+                        "name": manifest.get("name"),
+                        "description": manifest.get("description", ""),
+                        "input_schema": manifest.get("input_schema", {}),
+                        "output_schema": manifest.get("output_schema", {}),
+                        "function": manifest.get("function", "execute"),
+                        "version": manifest.get("version", "1.0")
+                    }]
 
-                logger.info(f"✅ Loaded tool: {tool_name} (v{manifest.get('version', '1.0')})")
+                for tool_entry in manifest_tools:
+                    tool_name = tool_entry.get("name")
+                    if not tool_name:
+                        logger.error(f"Tool {tool_dir.name} missing 'name' in manifest entry")
+                        continue
+
+                    function_name = tool_entry.get("function") or tool_name.split(".")[-1]
+                    if not hasattr(module, function_name):
+                        logger.error(f"Tool {tool_name} missing handler '{function_name}'")
+                        continue
+
+                    handler = getattr(module, function_name)
+
+                    self.tools[tool_name] = tool_entry
+                    self.tool_functions[tool_name] = handler
+
+                    logger.info(f"✅ Loaded tool: {tool_name} (v{tool_entry.get('version', manifest.get('version', '1.0'))})")
 
             except Exception as e:
                 logger.error(f"Failed to load tool {tool_dir.name}: {e}")

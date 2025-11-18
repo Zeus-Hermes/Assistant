@@ -3,7 +3,6 @@ FastAPI application entry point
 Provides REST API for LifeOS backend
 """
 from fastapi import FastAPI, HTTPException
-from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from pathlib import Path
 from pydantic import BaseModel
@@ -30,6 +29,7 @@ class QueryResponse(BaseModel):
     response: str
     tool_calls: list
     tool_outputs: list
+    audio_url: str | None = None
 
 
 @app.on_event("startup")

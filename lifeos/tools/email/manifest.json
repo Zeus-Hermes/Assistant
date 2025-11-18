@@ -1,0 +1,96 @@
+{
+  "name": "email",
+  "version": "1.0",
+  "description": "Gmail email utilities for LifeOS",
+  "tools": [
+    {
+      "name": "email.get_recent_emails",
+      "description": "Fetch the most recent emails from the user's Gmail inbox",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of emails to return",
+            "default": 5
+          }
+        },
+        "required": []
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "emails": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "subject": {"type": "string"},
+                "from": {"type": "string"},
+                "snippet": {"type": "string"},
+                "date": {"type": "string"}
+              }
+            }
+          }
+        }
+      },
+      "function": "get_recent_emails"
+    },
+    {
+      "name": "email.search_emails",
+      "description": "Search Gmail inbox with a query string",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Gmail search query"
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum results to return",
+            "default": 5
+          }
+        },
+        "required": ["query"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "emails": {
+            "type": "array",
+            "items": {"type": "object"}
+          }
+        }
+      },
+      "function": "search_emails"
+    },
+    {
+      "name": "email.summarize_inbox",
+      "description": "Summarize the inbox by returning key subjects and senders",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "max_results": {
+            "type": "integer",
+            "description": "Number of emails to summarize",
+            "default": 10
+          }
+        },
+        "required": []
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "summary": {"type": "string"},
+          "highlights": {
+            "type": "array",
+            "items": {"type": "object"}
+          }
+        }
+      },
+      "function": "summarize_inbox"
+    }
+  ]
+}
