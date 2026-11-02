@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { GoalForm } from '@/components/GoalForm';
+import { SetupHint } from '@/components/SetupCard';
 import { Card, T } from '@/components/ui';
 import { usePlan } from '@/hooks/usePlan';
 import { today } from '@/lib/dates';
@@ -13,7 +14,7 @@ export default function GoalSettings() {
   const goal = useStore((s) => s.goal);
   const updateGoal = useStore((s) => s.updateGoal);
   const plan = usePlan(today());
-  if (!profile) return null;
+  if (!profile) return <SetupHint />;
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

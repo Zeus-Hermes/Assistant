@@ -88,8 +88,9 @@ const shot = (name) => page.screenshot({ path: join(SHOTS, `${name}.png`) });
 
 await page.goto(base);
 
-await step('onboarding redirects and shows starting targets', async () => {
-  await byId('ob-birth-year').waitFor({ timeout: 20000 });
+await step('app opens on the dashboard with plan setup in place', async () => {
+  await byId('setup-card').waitFor({ timeout: 20000 });
+  await byId('nutrition-card').waitFor();
   await byId('ob-birth-year').fill('1996');
   await byId('ob-feet').fill('5');
   await byId('ob-inches').fill('11');
@@ -97,12 +98,12 @@ await step('onboarding redirects and shows starting targets', async () => {
   await byId('ob-preview').waitFor();
   const preview = await byId('ob-preview').innerText();
   if (!/kcal/.test(preview)) throw new Error(`preview missing calories: ${preview}`);
-  await shot('01-onboarding');
+  await shot('01-setup');
   await byId('ob-finish').click();
+  await byId('setup-card').waitFor({ state: 'detached' });
 });
 
-await step('dashboard renders nutrition and insights', async () => {
-  await byId('nutrition-card').waitFor();
+await step('dashboard shows targets once setup is done', async () => {
   await byId('calorie-ring').waitFor();
   await byId('expenditure-card').waitFor();
   await byId('weight-card').waitFor();

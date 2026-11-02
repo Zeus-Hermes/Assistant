@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { SetupHint } from '@/components/SetupCard';
 import { Card, Field, parseNum, Segmented, T } from '@/components/ui';
 import { CM_PER_IN } from '@/lib/units';
 import { useStore } from '@/store/useStore';
@@ -13,7 +14,7 @@ export default function ProfileSettings() {
   const [height, setHeight] = useState(() =>
     profile ? String(Math.round(imperial ? profile.heightCm / CM_PER_IN : profile.heightCm)) : '',
   );
-  if (!profile) return null;
+  if (!profile) return <SetupHint />;
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
 
+import { SetupHint } from '@/components/SetupCard';
 import { Button, Card, Segmented, T } from '@/components/ui';
 import { ACTIVITY_LEVELS } from '@/lib/activity';
 import { useStore } from '@/store/useStore';
@@ -9,7 +10,7 @@ import { space } from '@/theme';
 export default function ExpenditureSettings() {
   const profile = useStore((s) => s.profile);
   const updateProfile = useStore((s) => s.updateProfile);
-  if (!profile) return null;
+  if (!profile) return <SetupHint />;
   const value = ACTIVITY_LEVELS.find((a) => Number(a.value) === profile.activity)?.value ?? '1.45';
 
   return (

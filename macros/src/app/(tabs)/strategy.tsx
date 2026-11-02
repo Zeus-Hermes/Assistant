@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
+import { SetupHint } from '@/components/SetupCard';
 import { Button, Card, CircleButton, ScreenTitle, SectionHeader, T } from '@/components/ui';
 import { usePlan } from '@/hooks/usePlan';
 import { addDays, daysBetween, fromDateKey, today } from '@/lib/dates';
@@ -68,7 +69,16 @@ export default function Strategy() {
   const goal = useStore((s) => s.goal);
   const units = useStore((s) => s.profile?.units ?? 'imperial');
   const firstWeighIn = useStore((s) => s.weighIns[0]?.date);
-  if (!plan) return null;
+  if (!plan) {
+    return (
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <View style={{ padding: space.lg }}>
+          <ScreenTitle title="Strategy" />
+        </View>
+        <SetupHint />
+      </SafeAreaView>
+    );
+  }
 
   const days = daysBetween(plan.checkInDate, date);
   const next = addDays(plan.checkInDate, 7);

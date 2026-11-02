@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LineChart } from '@/components/LineChart';
 import { CalorieRing, MacroBars } from '@/components/MacroBars';
+import { SetupCard } from '@/components/SetupCard';
 import { Card, CircleButton, ScreenTitle, SectionHeader, T } from '@/components/ui';
 import { weekStart } from '@/components/WeekStrip';
 import { usePlan } from '@/hooks/usePlan';
@@ -55,7 +56,8 @@ function InsightCard({
 export default function Dashboard() {
   const date = today();
   const entries = useStore((s) => s.entries);
-  const units = useStore((s) => s.profile?.units ?? 'imperial');
+  const profile = useStore((s) => s.profile);
+  const units = profile?.units ?? 'imperial';
   const plan = usePlan(date);
   const totals = useMemo(() => totalsForDay(entries, date), [entries, date]);
   const intake = useMemo(() => intakeByDay(entries), [entries]);
@@ -86,6 +88,8 @@ export default function Dashboard() {
           <CircleButton icon="ellipsis-vertical" accessibilityLabel="Settings" onPress={() => router.navigate('/more')} />
         </ScreenTitle>
 
+        {!profile && <SetupCard />}
+
         <Card testID="nutrition-card" onPress={() => openLog(date)}>
           <T style={styles.cardTitle}>Daily Nutrition</T>
           {plan ? (
@@ -96,7 +100,7 @@ export default function Dashboard() {
               </View>
             </View>
           ) : (
-            <T dim>Log a weigh-in to get your targets.</T>
+            <T dim>{profile ? 'Log a weigh-in to get your targets.' : 'Your targets appear here once your plan is set up.'}</T>
           )}
           {plan && (
             <T variant="caption">

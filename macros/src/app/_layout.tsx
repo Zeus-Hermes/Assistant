@@ -44,7 +44,6 @@ export default function RootLayout() {
               contentStyle: { backgroundColor: colors.bg },
             }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
             <Stack.Screen name="add-food" options={{ ...modal, headerShown: false }} />
             <Stack.Screen name="shortcuts" options={sheet} />
             <Stack.Screen name="food-detail" options={{ ...modal, title: 'Food' }} />
