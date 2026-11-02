@@ -4,6 +4,8 @@
 // Simulated person: true expenditure 2,700 kcal/day, eating ~2,150 with
 // day-to-day noise, scale weight with ±0.6 kg water noise, a few unlogged days.
 //
+// It is stored in the v1 (meal-based) format, so it also checks the migration.
+//
 // Usage: node e2e/history.mjs [screenshotDir]
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -63,14 +65,21 @@ await page.addInitScript((s) => localStorage.setItem('macros-store', JSON.string
 await page.goto(base);
 await page.getByTestId('expenditure-card').waitFor();
 const exp = await page.getByTestId('expenditure-card').innerText();
+const estimate = Number(exp.match(/(\d{3,4})/)?.[1]);
 await page.screenshot({ path: join(SHOTS, 'history-dashboard.png'), fullPage: true });
-await page.goto(`${base}/progress`);
+await page.goto(`${base}/insights/weight`);
 await page.getByTestId('weight-chart').waitFor();
 await page.waitForTimeout(300);
-await page.screenshot({ path: join(SHOTS, 'history-progress.png'), fullPage: true });
+await page.screenshot({ path: join(SHOTS, 'history-weight.png') });
+await page.goto(`${base}/insights/expenditure`);
+await page.getByTestId('expenditure-chart').waitFor();
+await page.waitForTimeout(300);
+await page.screenshot({ path: join(SHOTS, 'history-expenditure.png') });
+// Seeded entries use the v1 meal format, so the lunch entries must have migrated to 12 PM.
+await page.goto(`${base}/log`);
+await page.getByTestId('hour-12').filter({ visible: true }).getByText('Seeded day').first().waitFor();
 await browser.close();
 server.close();
 
-const estimate = Number(exp.match(/(\d{3,4})\s*kcal/)?.[1]);
 console.log(`Estimated expenditure after ${DAYS} days: ${estimate} kcal (true ${TRUE_TDEE}, starting formula ~2,300)`);
 process.exit(Math.abs(estimate - TRUE_TDEE) < 250 ? 0 : 1);

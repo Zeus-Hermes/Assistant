@@ -101,15 +101,23 @@ await step('onboarding redirects and shows starting targets', async () => {
   await byId('ob-finish').click();
 });
 
-await step('dashboard renders nutrition, expenditure and weight', async () => {
+await step('dashboard renders nutrition and insights', async () => {
   await byId('nutrition-card').waitFor();
   await byId('calorie-ring').waitFor();
   await byId('expenditure-card').waitFor();
+  await byId('weight-card').waitFor();
   await shot('02-dashboard-empty');
 });
 
-await step('quick add logs custom calories and macros', async () => {
-  await byId('dash-quick-add').click();
+/** Total kcal logged at an hour on the timeline, read from its entries. */
+async function hourText(h) {
+  return byId(`hour-${h}`).innerText();
+}
+
+await step('quick add goes through the cart and lands at the chosen hour', async () => {
+  await byId('tab-log').click();
+  await byId('add-12').click();
+  await byId('tab-quick').click();
   await byId('qa-name').fill('Protein shake');
   await byId('qa-protein').fill('40');
   await byId('qa-carbs').fill('10');
@@ -117,12 +125,14 @@ await step('quick add logs custom calories and macros', async () => {
   await text('Calories will be calculated from macros: 227 kcal.').waitFor();
   await shot('03-quick-add');
   await byId('qa-save').click();
-  await text('Protein shake').waitFor();
-  await byId('meal-snacks').getByText('227 kcal').waitFor();
+  await byId('cart-pill').getByText('1').waitFor();
+  await byId('log-foods').click();
+  await byId('hour-12').getByText('Protein shake').waitFor();
+  if (!/227/.test(await hourText(12))) throw new Error(await hourText(12));
 });
 
-await step('food search merges USDA and Open Food Facts and logs a serving', async () => {
-  await byId('add-lunch').click();
+await step('search merges both databases; serving picker and + both add to the cart', async () => {
+  await byId('add-13').click();
   await byId('food-search').fill('chicken breast');
   await byId('result-0').waitFor({ timeout: 15000 });
   await shot('04-search');
@@ -133,70 +143,98 @@ await step('food search merges USDA and Open Food Facts and logs a serving', asy
   await text('1 cup, chopped or diced (140 g)').click();
   await byId('qty-input').fill('1.5');
   // 165 kcal/100 g × 140 g × 1.5 = 346.5
-  await page.waitForFunction(() => document.querySelector('[data-testid="detail-kcal"]')?.textContent === '347');
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="detail-kcal"]')].some((e) => e.textContent === '347'));
   await shot('05-food-detail');
   await byId('save-food').click();
-  await byId('meal-lunch').getByText('347 kcal').waitFor();
+  await byId('result-1-add').click();
+  await byId('cart-pill').getByText('2').waitFor();
+  // Logged 227 earlier + 347 chicken + 61 soup (245 g × 25 kcal/100 g) in the cart.
+  await byId('cart-kcal').getByText('635', { exact: false }).waitFor();
+  await byId('log-foods').click();
+  await byId('hour-13').getByText('Chicken, broilers', { exact: false }).waitFor();
+  await byId('hour-13').getByText('Chicken Noodle Soup').waitFor();
 });
 
 await step('editing an entry recomputes it', async () => {
-  await byId('meal-lunch').getByText('Chicken, broilers', { exact: false }).click();
+  await byId('hour-13').getByText('Chicken, broilers', { exact: false }).click();
   await byId('qty-input').fill('1');
   await byId('save-food').click();
-  await byId('meal-lunch').getByText('231 kcal').waitFor();
+  await byId('hour-13').getByText('231', { exact: false }).waitFor();
   await shot('06-food-log');
 });
 
-await step('custom food is saved and loggable', async () => {
-  await byId('add-dinner').click();
+await step('custom food is created from Library and logged', async () => {
+  await byId('add-18').click();
+  await byId('tab-library').click();
   await byId('tool-create').click();
   await byId('cf-name').fill('Homemade chili');
   await byId('cf-kcal').fill('420');
   await byId('cf-protein').fill('32');
   await byId('cf-save').click();
   await byId('save-food').click();
-  await byId('meal-dinner').getByText('420 kcal').waitFor();
+  await byId('log-foods').click();
+  await byId('hour-18').getByText('Homemade chili').waitFor();
+  if (!/420/.test(await hourText(18))) throw new Error(await hourText(18));
 });
 
-await step('barcode lookup by typed code opens the product', async () => {
-  await byId('add-breakfast').click();
-  await byId('tool-scan').click();
+await step('recent picks remember the last portion', async () => {
+  await byId('add-19').click();
+  const picks = await byId('result-0').innerText();
+  if (!/Homemade chili/.test(picks)) throw new Error(`most recent pick should be the chili: ${picks}`);
+  // Chicken was logged as 1.5 cups (later edits change the entry, not the remembered portion).
+  await text('1.5 × 1 cup, chopped or diced (140 g)', { exact: false }).waitFor();
+  await byId('sheet-close').click();
+});
+
+await step('barcode typed into the Scan tab opens the product', async () => {
+  await byId('add-8').click();
+  await byId('tab-scan').click();
   await byId('barcode-input').fill('0049000028911');
   await byId('barcode-lookup').click();
   await byId('food-name').waitFor();
   const name = await byId('food-name').innerText();
   if (name !== 'Chicken Noodle Soup') throw new Error(name);
   await page.goBack();
+  await byId('sheet-close').click();
 });
 
-await step('weigh-in is saved and shows on progress', async () => {
-  await page.goto(`${base}/progress`);
-  await byId('progress-weigh-in').click();
+await step('shortcuts sheet logs a weigh-in', async () => {
+  await byId('tab-plus').click();
+  await byId('shortcuts').waitFor();
+  await shot('07-shortcuts');
+  await byId('sc-weight').click();
   await byId('weight-input').fill('184.2');
   await byId('weight-save').click();
-  await byId('weight-chart').getByText('lb', { exact: false }).first().waitFor();
-  await shot('07-progress');
+  await byId('tab-index').click();
+  await byId('weight-card').getByText('184.2').waitFor();
 });
 
-await step('settings shows targets and data counts', async () => {
-  await page.goto(`${base}/settings`);
-  await byId('settings-targets').waitFor();
-  await text('3 log entries', { exact: false }).waitFor();
-  await shot('08-settings');
+await step('strategy shows the check-in ring and program', async () => {
+  await byId('tab-strategy').click();
+  await byId('checkin-ring').waitFor();
+  await byId('program-card').waitFor();
+  await shot('08-strategy');
+});
+
+await step('more → data shows what is stored', async () => {
+  await byId('tab-more').click();
+  await byId('more-data').click();
+  await text('4 log entries', { exact: false }).waitFor();
+  await shot('09-data');
 });
 
 await step('data survives a reload', async () => {
   await page.goto(`${base}/log`);
-  await text('Protein shake').waitFor();
+  await byId('hour-12').getByText('Protein shake').waitFor();
 });
 
 await step('dashboard reflects the logged day', async () => {
   await page.goto(base);
   await byId('nutrition-card').getByText('of', { exact: false }).waitFor();
   const body = await byId('nutrition-card').innerText();
-  // 227 + 231 + 420 = 878
-  if (!/878 of/.test(body)) throw new Error(body);
-  await shot('09-dashboard-logged');
+  // 227 + 231 + 61 + 420 = 939
+  if (!/939 of/.test(body)) throw new Error(body);
+  await shot('10-dashboard-logged');
 });
 
 await browser.close();

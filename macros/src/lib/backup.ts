@@ -1,4 +1,4 @@
-import type { PersistedData } from '@/store/useStore';
+import { migrateEntry, type PersistedData } from '@/store/useStore';
 
 export const BACKUP_FORMAT = 'macros-backup';
 export const BACKUP_VERSION = 1;
@@ -53,7 +53,7 @@ export function parseBackup(text: string): PersistedData {
   return {
     profile: (isObj(d.profile) ? d.profile : null) as PersistedData['profile'],
     goal: d.goal as unknown as PersistedData['goal'],
-    entries: entries as PersistedData['entries'],
+    entries: (entries as PersistedData['entries']).map(migrateEntry),
     weighIns: weighIns as PersistedData['weighIns'],
     customFoods: arr('customFoods') as PersistedData['customFoods'],
     recentFoods: arr('recentFoods') as PersistedData['recentFoods'],

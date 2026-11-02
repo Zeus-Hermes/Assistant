@@ -20,11 +20,14 @@ export function LineChart({
   series,
   height = 160,
   formatY = (v) => v.toFixed(0),
+  axis = true,
   testID,
 }: {
   series: Series[];
   height?: number;
   formatY?: (v: number) => string;
+  /** Draw gridlines and y-axis labels; off for sparklines. */
+  axis?: boolean;
   testID?: string;
 }) {
   const [width, setWidth] = useState(0);
@@ -42,7 +45,7 @@ export function LineChart({
   maxY += pad;
 
   const left = 4;
-  const right = 40;
+  const right = axis ? 40 : 4;
   const top = 8;
   const bottom = 8;
   const w = Math.max(1, width - left - right);
@@ -55,14 +58,16 @@ export function LineChart({
     <View style={{ height }} onLayout={onLayout} testID={testID}>
       {width > 0 && (
         <Svg width={width} height={height}>
-          {gridYs.map((gy, i) => (
-            <Line key={i} x1={left} x2={left + w} y1={sy(gy)} y2={sy(gy)} stroke={colors.border} strokeDasharray="3 4" strokeWidth={1} />
-          ))}
-          {gridYs.map((gy, i) => (
-            <SvgText key={`t${i}`} x={left + w + 6} y={sy(gy) + 4} fill={colors.textDim} fontSize={11} fontFamily={LABEL_FONT}>
-              {formatY(gy)}
-            </SvgText>
-          ))}
+          {axis &&
+            gridYs.map((gy, i) => (
+              <Line key={i} x1={left} x2={left + w} y1={sy(gy)} y2={sy(gy)} stroke={colors.border} strokeDasharray="3 4" strokeWidth={1} />
+            ))}
+          {axis &&
+            gridYs.map((gy, i) => (
+              <SvgText key={`t${i}`} x={left + w + 6} y={sy(gy) + 4} fill={colors.textDim} fontSize={11} fontFamily={LABEL_FONT}>
+                {formatY(gy)}
+              </SvgText>
+            ))}
           {series.map((s, i) =>
             s.dots ? (
               s.points.map((p, j) => <Circle key={`${i}-${j}`} cx={sx(p.x)} cy={sy(p.y)} r={2.5} fill={s.color} opacity={0.55} />)

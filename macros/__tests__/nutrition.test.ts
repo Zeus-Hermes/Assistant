@@ -149,7 +149,7 @@ describe('weekly plan', () => {
     const entries: LogEntry[] = weighIns.map((w, i) => ({
       id: String(i),
       date: w.date,
-      meal: 'lunch',
+      hour: 12,
       name: 'Food',
       nutrients: { calories: 2300, protein: 150, carbs: 200, fat: 80 },
       createdAt: i,

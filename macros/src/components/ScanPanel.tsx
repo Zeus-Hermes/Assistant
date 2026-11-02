@@ -1,17 +1,16 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
-import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
-import { Button, Field, T } from '@/components/ui';
 import { lookupBarcode } from '@/lib/foodApi';
-import { putFood } from '@/lib/foodCache';
-import type { Meal } from '@/lib/types';
+import type { Food } from '@/lib/types';
 import { useStore } from '@/store/useStore';
 import { colors, radius, space } from '@/theme';
 
-export default function Scan() {
-  const params = useLocalSearchParams<{ date?: string; meal?: Meal }>();
+import { Button, Field, T } from './ui';
+
+/** Barcode camera (phone only) plus a typed-barcode fallback. */
+export function ScanPanel({ onFound }: { onFound: (food: Food) => void }) {
   const usdaApiKey = useStore((s) => s.usdaApiKey);
   const [permission, requestPermission] = useCameraPermissions();
   const [manual, setManual] = useState('');
@@ -27,12 +26,12 @@ export default function Scan() {
     try {
       const food = await lookupBarcode(barcode, { usdaApiKey });
       if (food) {
-        putFood(food);
-        router.replace({ pathname: '/food-detail', params: { foodId: food.id, date: params.date, meal: params.meal } });
-        return;
+        setStatus('idle');
+        onFound(food);
+      } else {
+        setStatus('notfound');
+        setMessage(`No product found for ${barcode}. Try searching by name, or create it in Library.`);
       }
-      setStatus('notfound');
-      setMessage(`No product found for ${barcode}. Try searching by name, or create it as a custom food.`);
     } catch (e) {
       setStatus('error');
       setMessage((e as Error).message);
@@ -45,7 +44,7 @@ export default function Scan() {
   const cameraAvailable = Platform.OS !== 'web';
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1 }}>
       {cameraAvailable && permission?.granted ? (
         <View style={styles.cameraWrap}>
           <CameraView
@@ -66,15 +65,15 @@ export default function Scan() {
       ) : null}
 
       <View style={styles.bottom}>
-        {status === 'looking' && <ActivityIndicator color={colors.accent} />}
+        {status === 'looking' && <ActivityIndicator color={colors.text} />}
         {(status === 'notfound' || status === 'error') && (
-          <T style={{ color: status === 'error' ? colors.danger : colors.fat }} testID="scan-message">
+          <T style={{ color: status === 'error' ? colors.danger : colors.expenditure }} testID="scan-message">
             {message}
           </T>
         )}
         <Field
           testID="barcode-input"
-          label="Or type the barcode"
+          label="Type the barcode"
           value={manual}
           onChangeText={setManual}
           keyboardType="number-pad"
@@ -94,8 +93,14 @@ export default function Scan() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  cameraWrap: { flex: 1, margin: space.lg, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surface },
+  cameraWrap: {
+    flex: 1,
+    minHeight: 260,
+    margin: space.lg,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceAlt,
+  },
   center: { alignItems: 'center', justifyContent: 'center', gap: space.lg, padding: space.xl },
   reticle: {
     position: 'absolute',

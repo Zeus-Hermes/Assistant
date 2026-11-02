@@ -1,67 +1,98 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { DateBar } from '@/components/DateBar';
 import { LineChart } from '@/components/LineChart';
 import { CalorieRing, MacroBars } from '@/components/MacroBars';
-import { Card, T } from '@/components/ui';
+import { Card, CircleButton, ScreenTitle, SectionHeader, T } from '@/components/ui';
+import { weekStart } from '@/components/WeekStrip';
 import { usePlan } from '@/hooks/usePlan';
-import { addDays, daysBetween, formatDayLabel } from '@/lib/dates';
-import { totalsForDay } from '@/lib/plan';
-import { displayWeight, fromKg, weightUnit } from '@/lib/units';
+import { addDays, daysBetween, fromDateKey, today } from '@/lib/dates';
+import { formatKcal } from '@/lib/format';
+import { intakeByDay, totalsForDay } from '@/lib/plan';
+import { fromKg, weightUnit } from '@/lib/units';
 import { useSelectedDate } from '@/store/useSelectedDate';
 import { useStore } from '@/store/useStore';
-import { colors, radius, space } from '@/theme';
+import { colors, fonts, radius, space } from '@/theme';
 
-function Action({
-  icon,
-  label,
+const DAY_LETTER = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+function InsightCard({
+  title,
+  value,
+  unit,
+  sub,
+  points,
+  color,
   onPress,
   testID,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
+  title: string;
+  value: string;
+  unit: string;
+  sub?: string;
+  points: { x: number; y: number }[];
+  color: string;
   onPress: () => void;
   testID?: string;
 }) {
   return (
-    <Pressable testID={testID} onPress={onPress} style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}>
-      <Ionicons name={icon} size={20} color={colors.text} />
-      <T variant="caption" style={{ color: colors.text }}>
-        {label}
-      </T>
-    </Pressable>
+    <Card onPress={onPress} testID={testID} style={styles.insight}>
+      <T style={styles.insightTitle}>{title}</T>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+        <T style={styles.insightValue}>{value}</T>
+        <T dim style={{ fontSize: 13 }}>
+          {unit}
+        </T>
+      </View>
+      {sub ? <T variant="caption">{sub}</T> : null}
+      {points.length > 1 ? <LineChart height={64} series={[{ points, color }]} axis={false} /> : <View style={{ height: 64 }} />}
+    </Card>
   );
 }
 
 export default function Dashboard() {
-  const { date, setDate } = useSelectedDate();
+  const date = today();
   const entries = useStore((s) => s.entries);
   const units = useStore((s) => s.profile?.units ?? 'imperial');
   const plan = usePlan(date);
   const totals = useMemo(() => totalsForDay(entries, date), [entries, date]);
+  const intake = useMemo(() => intakeByDay(entries), [entries]);
 
-  const since = addDays(date, -29);
-  const trend = plan?.expenditure.trend.filter((p) => p.date >= since) ?? [];
-  const exp = plan?.expenditure.series.filter((p) => p.date >= since) ?? [];
-  const latestTrend = trend.at(-1)?.value;
+  const since = addDays(date, -20);
+  const trend = (plan?.expenditure.trend ?? []).filter((p) => p.date >= since);
+  const exp = (plan?.expenditure.series ?? []).filter((p) => p.date >= since);
+  const latest = trend.at(-1)?.value;
   const weekAgo = trend.find((p) => p.date === addDays(date, -7))?.value;
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart(date), i));
+  const maxKcal = Math.max((plan?.targets.calories ?? 1) * 1.2, ...weekDays.map((d) => intake[d] ?? 0));
+
+  const openLog = (d: string) => {
+    useSelectedDate.getState().setDate(d);
+    router.navigate('/log');
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <DateBar date={date} onChange={setDate} />
+        <ScreenTitle title="Dashboard">
+          <CircleButton
+            icon="scale"
+            accessibilityLabel="Log weight"
+            testID="dash-weigh-in"
+            onPress={() => router.push({ pathname: '/weigh-in', params: { date } })}
+          />
+          <CircleButton icon="ellipsis-vertical" accessibilityLabel="Settings" onPress={() => router.navigate('/more')} />
+        </ScreenTitle>
 
-        <Card testID="nutrition-card" onPress={() => router.navigate('/log')}>
-          <T variant="label">Nutrition</T>
+        <Card testID="nutrition-card" onPress={() => openLog(date)}>
+          <T style={styles.cardTitle}>Daily Nutrition</T>
           {plan ? (
             <View style={styles.nutritionRow}>
               <CalorieRing consumed={totals.calories} target={plan.targets.calories} />
               <View style={{ flex: 1 }}>
-                <MacroBars totals={totals} targets={plan.targets} keys={['protein', 'fat', 'carbs']} />
+                <MacroBars totals={totals} targets={plan.targets} />
               </View>
             </View>
           ) : (
@@ -69,102 +100,84 @@ export default function Dashboard() {
           )}
           {plan && (
             <T variant="caption">
-              {Math.round(totals.calories)} of {plan.targets.calories} kcal eaten
+              {formatKcal(totals.calories)} of {formatKcal(plan.targets.calories)} kcal eaten
             </T>
-          )}
-        </Card>
-
-        <View style={styles.actions}>
-          <Action
-            testID="dash-log-food"
-            icon="search"
-            label="Log food"
-            onPress={() => router.push({ pathname: '/add-food', params: { date, meal: 'snacks' } })}
-          />
-          <Action
-            testID="dash-quick-add"
-            icon="flash-outline"
-            label="Quick add"
-            onPress={() => router.push({ pathname: '/quick-add', params: { date, meal: 'snacks' } })}
-          />
-          <Action
-            icon="barcode-outline"
-            label="Scan"
-            onPress={() => router.push({ pathname: '/scan', params: { date, meal: 'snacks' } })}
-          />
-          <Action
-            testID="dash-weigh-in"
-            icon="scale-outline"
-            label="Weigh in"
-            onPress={() => router.push({ pathname: '/weigh-in', params: { date } })}
-          />
-        </View>
-
-        <Card onPress={() => router.navigate('/progress')} testID="expenditure-card">
-          <View style={styles.cardHead}>
-            <T variant="label">Expenditure</T>
-            {plan && !plan.expenditure.adaptive && <T variant="caption">Estimated · adapts as you log</T>}
-          </View>
-          <T variant="number" style={styles.big}>
-            {plan ? Math.round(plan.expenditure.current) : '—'} <T dim>kcal</T>
-          </T>
-          {exp.length > 1 && (
-            <LineChart
-              height={90}
-              series={[{ points: exp.map((p) => ({ x: daysBetween(since, p.date), y: p.value })), color: colors.expenditure }]}
-            />
-          )}
-        </Card>
-
-        <Card onPress={() => router.navigate('/progress')} testID="weight-card">
-          <T variant="label">Weight trend</T>
-          <View style={styles.cardHead}>
-            <T variant="number" style={styles.big}>
-              {latestTrend != null ? displayWeight(latestTrend, units) : '—'}
-            </T>
-            {latestTrend != null && weekAgo != null && (
-              <T variant="caption">
-                {latestTrend - weekAgo >= 0 ? '+' : '−'}
-                {Math.abs(fromKg(latestTrend - weekAgo, units)).toFixed(1)} {weightUnit(units)} this week
-              </T>
-            )}
-          </View>
-          {trend.length > 1 && (
-            <LineChart
-              height={90}
-              formatY={(v) => v.toFixed(1)}
-              series={[{ points: trend.map((p) => ({ x: daysBetween(since, p.date), y: fromKg(p.value, units) })), color: colors.weight }]}
-            />
           )}
         </Card>
 
         {plan && (
-          <Card>
-            <T variant="label">This week's plan</T>
-            <T dim>
-              {plan.checkInAdaptive
-                ? `Set at the ${formatDayLabel(plan.checkInDate)} check-in from your measured expenditure of ${Math.round(plan.checkInExpenditure)} kcal.`
-                : `Based on your starting estimate of ${Math.round(plan.checkInExpenditure)} kcal. Once you have about a week of food and weight logs, the Monday check-in switches to your measured expenditure.`}
-            </T>
+          <Card testID="week-card">
+            <T style={styles.cardTitle}>This Week</T>
+            <View style={styles.week}>
+              {weekDays.map((d) => {
+                const kcal = intake[d] ?? 0;
+                return (
+                  <View key={d} style={styles.weekCol}>
+                    <View style={styles.weekTrack}>
+                      <View style={[styles.weekTarget, { bottom: `${(plan.targets.calories / maxKcal) * 100}%` }]} />
+                      <View style={[styles.weekFill, { height: `${(kcal / maxKcal) * 100}%` }, d > date && { opacity: 0 }]} />
+                    </View>
+                    <T variant="caption" style={d === date ? { color: colors.text } : undefined}>
+                      {DAY_LETTER[fromDateKey(d).getDay()]}
+                    </T>
+                  </View>
+                );
+              })}
+            </View>
+            <T variant="caption">Calories eaten each day. The line marks your target.</T>
           </Card>
         )}
+
+        <SectionHeader title="Insights & Analytics" />
+        <View style={styles.grid}>
+          <InsightCard
+            testID="expenditure-card"
+            title="Expenditure"
+            value={plan ? formatKcal(plan.expenditure.current) : '—'}
+            unit="kcal"
+            sub={plan && !plan.expenditure.adaptive ? 'Estimated' : 'Last 3 weeks'}
+            points={exp.map((p) => ({ x: daysBetween(since, p.date), y: p.value }))}
+            color={colors.expenditure}
+            onPress={() => router.push('/insights/expenditure')}
+          />
+          <InsightCard
+            testID="weight-card"
+            title="Weight Trend"
+            value={latest != null ? fromKg(latest, units).toFixed(1) : '—'}
+            unit={weightUnit(units)}
+            sub={
+              latest != null && weekAgo != null
+                ? `${latest - weekAgo >= 0 ? '+' : '−'}${Math.abs(fromKg(latest - weekAgo, units)).toFixed(1)} this week`
+                : 'Last 3 weeks'
+            }
+            points={trend.map((p) => ({ x: daysBetween(since, p.date), y: fromKg(p.value, units) }))}
+            color={colors.weight}
+            onPress={() => router.push('/insights/weight')}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: space.lg, gap: space.lg, paddingBottom: space.xxl },
-  nutritionRow: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
-  actions: { flexDirection: 'row', gap: space.sm },
-  action: {
+  content: { padding: space.lg, gap: space.lg, paddingBottom: 150 },
+  cardTitle: { fontSize: 18, fontFamily: fonts.medium },
+  nutritionRow: { flexDirection: 'row', alignItems: 'center', gap: space.xl },
+  week: { flexDirection: 'row', gap: space.sm, height: 110 },
+  weekCol: { flex: 1, alignItems: 'center', gap: 6 },
+  weekTrack: {
     flex: 1,
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: space.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    alignSelf: 'stretch',
+    justifyContent: 'flex-end',
+    borderRadius: 6,
+    backgroundColor: colors.surfaceAlt,
+    overflow: 'hidden',
   },
-  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  big: { fontSize: 24, fontWeight: '700' },
+  weekFill: { backgroundColor: colors.expenditure, borderTopLeftRadius: 4, borderTopRightRadius: 4 },
+  weekTarget: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: colors.blue, zIndex: 1 },
+  grid: { flexDirection: 'row', gap: space.md },
+  insight: { flex: 1, gap: 4, borderRadius: radius.lg },
+  insightTitle: { fontSize: 15, fontFamily: fonts.medium },
+  insightValue: { fontSize: 24, fontFamily: fonts.semibold },
 });

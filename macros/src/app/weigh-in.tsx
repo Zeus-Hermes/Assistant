@@ -1,13 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { DateBar } from '@/components/DateBar';
-import { Button, Field, parseNum, T } from '@/components/ui';
-import { today } from '@/lib/dates';
+import { Button, CircleButton, parseNum, T } from '@/components/ui';
+import { addDays, formatDayLabel, today } from '@/lib/dates';
 import { fromKg, toKg, weightUnit } from '@/lib/units';
 import { useStore } from '@/store/useStore';
-import { space } from '@/theme';
+import { colors, fonts, space } from '@/theme';
 
 export default function WeighIn() {
   const params = useLocalSearchParams<{ date?: string }>();
@@ -22,27 +21,36 @@ export default function WeighIn() {
   const value = parseNum(text);
   const valid = value != null && value > 20 && value < 700;
 
+  const goTo = (d: string) => {
+    setDate(d);
+    const w = weighIns.find((x) => x.date === d);
+    setText(w ? fromKg(w.kg, units).toFixed(1) : '');
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <DateBar
-        date={date}
-        onChange={(d) => {
-          setDate(d);
-          const w = weighIns.find((x) => x.date === d);
-          setText(w ? fromKg(w.kg, units).toFixed(1) : '');
-        }}
-      />
-      <Field
-        testID="weight-input"
-        label="Scale weight"
-        value={text}
-        onChangeText={setText}
-        keyboardType="decimal-pad"
-        suffix={weightUnit(units)}
-        placeholder={last ? fromKg(last.kg, units).toFixed(1) : ''}
-        autoFocus
-      />
-      <T variant="caption">Weigh in daily, first thing in the morning, for the most accurate trend.</T>
+      <View style={styles.dayRow}>
+        <CircleButton icon="chevron-back" size={40} accessibilityLabel="Previous day" onPress={() => goTo(addDays(date, -1))} />
+        <T style={styles.day}>{formatDayLabel(date)}</T>
+        <CircleButton icon="chevron-forward" size={40} accessibilityLabel="Next day" onPress={() => goTo(addDays(date, 1))} />
+      </View>
+      <View style={styles.valueRow}>
+        <TextInput
+          testID="weight-input"
+          value={text}
+          onChangeText={setText}
+          keyboardType="decimal-pad"
+          placeholder={last ? fromKg(last.kg, units).toFixed(1) : '0.0'}
+          placeholderTextColor={colors.textFaint}
+          style={styles.value}
+          autoFocus
+          selectionColor={colors.text}
+        />
+        <T style={styles.unit}>{weightUnit(units)}</T>
+      </View>
+      <T variant="caption" style={{ textAlign: 'center' }}>
+        Weigh in first thing in the morning for the most accurate trend.
+      </T>
       <Button
         testID="weight-save"
         title="Save"
@@ -67,5 +75,10 @@ export default function WeighIn() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: space.lg, gap: space.lg },
+  content: { padding: space.lg, gap: space.xl },
+  dayRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  day: { fontSize: 18, fontFamily: fonts.medium },
+  valueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: space.sm, paddingVertical: space.xl },
+  value: { color: colors.text, fontSize: 64, fontFamily: fonts.semibold, minWidth: 160, textAlign: 'center' },
+  unit: { fontSize: 24, color: colors.textDim },
 });

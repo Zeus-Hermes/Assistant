@@ -30,9 +30,5 @@ export function formatDayLabel(key: string, now: string = today()): string {
   if (diff === 0) return 'Today';
   if (diff === -1) return 'Yesterday';
   if (diff === 1) return 'Tomorrow';
-  return fromDateKey(key).toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
+  return fromDateKey(key).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }

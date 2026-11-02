@@ -43,18 +43,23 @@ The core math is in `src/lib/nutrition.ts`, `src/lib/expenditure.ts` and `src/li
 
 ## Project layout
 
+The look follows MacroFactor's dark theme: Unbounded for the wide screen titles, Poppins for everything else, white pills and rings on near-black.
+
 ```
 src/app/            screens (Expo Router)
-  (tabs)/           Dashboard, Food Log, Progress, Settings
-  add-food.tsx      search, recent, my foods
-  food-detail.tsx   serving picker and logging/editing
-  quick-add.tsx     calories + macros without a food
+  (tabs)/           Dashboard, Food Log (hourly timeline), Strategy, More
+  add-food.tsx      the add sheet: Scan / Search / AI / Quick Add / Library tabs, cart, "Log Foods"
+  shortcuts.tsx     sheet behind the centre + button
+  food-detail.tsx   serving picker; adds to the cart or edits a logged entry
+  quick-add.tsx     edit a quick-add entry
   custom-food.tsx   create a reusable food
-  scan.tsx          barcode camera + manual entry
   weigh-in.tsx
+  insights/         weight trend and expenditure charts
+  settings/         goal, profile, units, expenditure, food database, data & backup
   onboarding.tsx
+src/components/     shared UI (tab bar, week strip, macro pager, rings, charts)
 src/lib/            pure logic (math, food APIs, backup format)
-src/store/          zustand store persisted to AsyncStorage
+src/store/          zustand stores: persisted data, the add-food cart, selected day
 __tests__/          Jest unit tests
 e2e/                Playwright tests against the web build
 ```
@@ -67,7 +72,7 @@ npm run typecheck
 npm run test:e2e    # exports the web build, then clicks through it in headless Chromium
 ```
 
-`e2e/smoke.mjs` answers food database requests with recorded sample responses, so it is deterministic. Run `LIVE=1 node e2e/smoke.mjs` to hit the real APIs. `e2e/history.mjs` seeds six weeks of simulated data and checks that the expenditure estimate converges on the true value.
+`e2e/smoke.mjs` answers food database requests with recorded sample responses, so it is deterministic. Run `LIVE=1 node e2e/smoke.mjs` to hit the real APIs. `e2e/history.mjs` seeds six weeks of simulated data (in the old meal-based format, to exercise the migration) and checks that the expenditure estimate converges on the true value. `e2e/screens.mjs` screenshots every main screen for side-by-side comparison.
 
 ## Roadmap
 

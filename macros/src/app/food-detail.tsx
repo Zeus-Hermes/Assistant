@@ -1,23 +1,24 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
-import { MacroInline } from '@/components/MacroBars';
-import { Button, Card, Chip, Divider, Field, parseNum, Segmented, T } from '@/components/ui';
+import { FoodIcon } from '@/components/FoodBits';
+import { HourPicker } from '@/components/HourPicker';
+import { Button, Card, Chip, Divider, Field, parseNum, T } from '@/components/ui';
 import { confirm } from '@/lib/confirm';
-import { today } from '@/lib/dates';
 import { getFood } from '@/lib/foodCache';
-import { finishLogging } from '@/lib/nav';
 import { isUnitServing, nutrientsFor } from '@/lib/nutrition';
-import { MEAL_LABEL, MEALS, type Meal, type Nutrients } from '@/lib/types';
+import type { Nutrients } from '@/lib/types';
+import { useCart } from '@/store/useCart';
 import { useStore } from '@/store/useStore';
-import { colors, macroColor, space } from '@/theme';
+import { colors, fonts, space } from '@/theme';
 
-function NutrientRow({ label, value, unit, color }: { label: string; value?: number; unit: string; color?: string }) {
+function NutrientRow({ label, value, unit, indent }: { label: string; value?: number; unit: string; indent?: boolean }) {
   if (value == null) return null;
   return (
     <View style={styles.nRow}>
-      <T style={color ? { color } : undefined}>{label}</T>
+      <T style={indent ? { color: colors.textDim, paddingLeft: space.lg } : undefined}>{label}</T>
       <T variant="number">
         {value < 10 && value > 0 ? value.toFixed(1) : Math.round(value)} {unit}
       </T>
@@ -25,13 +26,28 @@ function NutrientRow({ label, value, unit, color }: { label: string; value?: num
   );
 }
 
+function Stat({ value, label, testID }: { value: string; label: string; testID?: string }) {
+  return (
+    <View style={{ alignItems: 'center', gap: 2 }}>
+      <T style={styles.statValue} testID={testID}>
+        {value}
+      </T>
+      <T variant="caption">{label}</T>
+    </View>
+  );
+}
+
+/**
+ * Pick a serving for a food. Opened from the add-food sheet it adds to the
+ * cart; opened from a log entry it edits that entry.
+ */
 export default function FoodDetail() {
-  const params = useLocalSearchParams<{ foodId: string; entryId?: string; date?: string; meal?: Meal }>();
+  const params = useLocalSearchParams<{ foodId: string; entryId?: string }>();
   const entry = useStore((s) => (params.entryId ? s.entries.find((e) => e.id === params.entryId) : undefined));
   const food = entry?.food ?? getFood(params.foodId);
-  const logFood = useStore((s) => s.logFood);
   const updateEntry = useStore((s) => s.updateEntry);
   const deleteEntry = useStore((s) => s.deleteEntry);
+  const addToCart = useCart((s) => s.addFood);
 
   const initialServingIdx = useMemo(() => {
     if (!food || !entry?.serving) return 0;
@@ -46,7 +62,7 @@ export default function FoodDetail() {
     // Gram/ml-only foods default to 100 units; servings default to one.
     return s && isUnitServing(s) ? '100' : '1';
   });
-  const [meal, setMeal] = useState<Meal>(entry?.meal ?? (params.meal && MEALS.includes(params.meal) ? params.meal : 'snacks'));
+  const [hour, setHour] = useState(entry?.hour ?? 12);
 
   if (!food) {
     return (
@@ -65,40 +81,38 @@ export default function FoodDetail() {
 
   const save = () => {
     if (!valid) return;
-    if (entry) {
-      updateEntry(entry.id, { serving, quantity: qty, meal });
-    } else {
-      logFood({ date: params.date ?? today(), meal, food, serving, quantity: qty });
-    }
-    finishLogging();
+    if (entry) updateEntry(entry.id, { serving, quantity: qty, hour });
+    else addToCart(food, serving, qty);
+    router.back();
   };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <Stack.Screen options={{ title: entry ? 'Edit Entry' : 'Add Food' }} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={{ gap: 4 }}>
-          <T variant="title" style={{ fontSize: 22 }} testID="food-name">
-            {food.name}
-          </T>
-          {food.brand ? <T dim>{food.brand}</T> : null}
+        <View style={styles.titleRow}>
+          <FoodIcon name={food.name} size={52} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <T style={styles.name} testID="food-name">
+              {food.name}
+            </T>
+            {food.brand ? <T dim>By {food.brand}</T> : null}
+          </View>
         </View>
 
         <Card style={styles.summary}>
-          <View style={{ alignItems: 'center' }}>
-            <T variant="number" style={{ fontSize: 30, fontWeight: '700' }} testID="detail-kcal">
-              {Math.round(n.calories)}
-            </T>
-            <T variant="caption">kcal</T>
-          </View>
-          {(['protein', 'fat', 'carbs'] as const).map((k) => (
-            <View key={k} style={{ alignItems: 'center' }}>
-              <T variant="number" style={{ fontSize: 20, color: macroColor[k] }}>
-                {Math.round(n[k])}g
+          <View style={{ alignItems: 'center', gap: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <T style={styles.kcal} testID="detail-kcal">
+                {Math.round(n.calories)}
               </T>
-              <T variant="caption">{k === 'carbs' ? 'Carbs' : k === 'fat' ? 'Fat' : 'Protein'}</T>
+              <Ionicons name="flame" size={22} color={colors.text} />
             </View>
-          ))}
+            <T variant="caption">Calories</T>
+          </View>
+          <Stat value={`${Math.round(n.protein)}P`} label="Protein" />
+          <Stat value={`${Math.round(n.fat)}F`} label="Fat" />
+          <Stat value={`${Math.round(n.carbs)}C`} label="Carbs" />
         </Card>
 
         <View style={{ gap: space.sm }}>
@@ -130,32 +144,33 @@ export default function FoodDetail() {
           suffix={isUnit ? serving.label : '×'}
         />
 
-        <View style={{ gap: space.sm }}>
-          <T variant="label">Meal</T>
-          <Segmented options={MEALS.map((m) => ({ value: m, label: MEAL_LABEL[m] }))} value={meal} onChange={setMeal} />
-        </View>
+        {entry && (
+          <View style={{ gap: space.sm, marginHorizontal: -space.lg }}>
+            <T variant="label" style={{ paddingHorizontal: space.lg }}>
+              Time
+            </T>
+            <HourPicker hour={hour} onChange={setHour} />
+          </View>
+        )}
 
         <Card style={{ gap: space.sm }}>
           <T variant="label">Nutrition for this amount</T>
-          <NutrientRow label="Calories" value={n.calories} unit="kcal" color={colors.calories} />
+          <NutrientRow label="Calories" value={n.calories} unit="kcal" />
           <Divider />
-          <NutrientRow label="Protein" value={n.protein} unit="g" color={colors.protein} />
-          <NutrientRow label="Fat" value={n.fat} unit="g" color={colors.fat} />
-          <NutrientRow label="Carbohydrates" value={n.carbs} unit="g" color={colors.carbs} />
-          <NutrientRow label="  Fiber" value={n.fiber} unit="g" />
-          <NutrientRow label="  Sugar" value={n.sugar} unit="g" />
+          <NutrientRow label="Protein" value={n.protein} unit="g" />
+          <NutrientRow label="Fat" value={n.fat} unit="g" />
+          <NutrientRow label="Carbohydrates" value={n.carbs} unit="g" />
+          <NutrientRow label="Fiber" value={n.fiber} unit="g" indent />
+          <NutrientRow label="Sugar" value={n.sugar} unit="g" indent />
           <NutrientRow label="Sodium" value={n.sodium} unit="mg" />
           <Divider />
-          <T variant="caption">
-            Per {food.base.amount} {food.base.unit}: {Math.round(food.nutrients.calories)} kcal · <MacroInline n={food.nutrients} />
-          </T>
           <T variant="caption">
             Source: {food.source === 'off' ? 'Open Food Facts' : food.source === 'usda' ? 'USDA FoodData Central' : 'Custom food'}
             {food.barcode ? ` · ${food.barcode}` : ''}
           </T>
         </Card>
 
-        <Button testID="save-food" title={entry ? 'Save' : 'Add to log'} onPress={save} disabled={!valid} />
+        <Button testID="save-food" title={entry ? 'Save' : 'Add'} onPress={save} disabled={!valid} />
         {entry && (
           <Button
             title="Delete entry"
@@ -174,8 +189,12 @@ export default function FoodDetail() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: space.lg, gap: space.lg, paddingBottom: space.xxl },
-  summary: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
+  content: { padding: space.lg, gap: space.xl, paddingBottom: space.xxl },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  name: { fontSize: 22, fontFamily: fonts.medium },
+  summary: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingVertical: space.xl },
+  kcal: { fontSize: 28, fontFamily: fonts.semibold },
+  statValue: { fontSize: 20, fontFamily: fonts.medium },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   nRow: { flexDirection: 'row', justifyContent: 'space-between' },
   missing: { flex: 1, padding: space.xl, gap: space.lg, justifyContent: 'center' },

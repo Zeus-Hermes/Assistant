@@ -3,7 +3,17 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { uid } from '@/lib/id';
-import type { Food, Goal, LogEntry, Meal, Nutrients, Profile, Serving, WeighIn } from '@/lib/types';
+import {
+  LEGACY_MEAL_HOUR,
+  type Food,
+  type Goal,
+  type Hour,
+  type LogEntry,
+  type Nutrients,
+  type Profile,
+  type Serving,
+  type WeighIn,
+} from '@/lib/types';
 import { nutrientsFor } from '@/lib/nutrition';
 
 export const DEFAULT_GOAL: Goal = {
@@ -29,9 +39,9 @@ interface Actions {
   completeOnboarding(profile: Profile, goal: Goal, weighIn: WeighIn): void;
   updateProfile(patch: Partial<Profile>): void;
   updateGoal(patch: Partial<Goal>): void;
-  logFood(input: { date: string; meal: Meal; food: Food; serving: Serving; quantity: number }): LogEntry;
-  quickAdd(input: { date: string; meal: Meal; name?: string; nutrients: Nutrients }): LogEntry;
-  updateEntry(id: string, patch: { serving?: Serving; quantity?: number; meal?: Meal; nutrients?: Nutrients; name?: string }): void;
+  logFood(input: { date: string; hour: Hour; food: Food; serving: Serving; quantity: number }): LogEntry;
+  quickAdd(input: { date: string; hour: Hour; name?: string; nutrients: Nutrients }): LogEntry;
+  updateEntry(id: string, patch: { serving?: Serving; quantity?: number; hour?: Hour; nutrients?: Nutrients; name?: string }): void;
   deleteEntry(id: string): void;
   copyDay(from: string, to: string): void;
   logWeight(w: WeighIn): void;
@@ -55,8 +65,8 @@ const initial: PersistedData = {
   usdaApiKey: '',
 };
 
-function pushRecent(list: Food[], food: Food): Food[] {
-  return [food, ...list.filter((f) => f.id !== food.id)].slice(0, RECENT_LIMIT);
+function pushRecent(list: Food[], food: Food, serving: Serving, quantity: number): Food[] {
+  return [{ ...food, last: { serving, quantity } }, ...list.filter((f) => f.id !== food.id)].slice(0, RECENT_LIMIT);
 }
 
 export const useStore = create<State>()(
@@ -81,11 +91,14 @@ export const useStore = create<State>()(
         set((s) => ({ goal: { ...s.goal, ...patch } }));
       },
 
-      logFood({ date, meal, food, serving, quantity }) {
+      logFood({ date, hour, food: picked, serving, quantity }) {
+        // The remembered portion belongs on the recent list, not inside log entries.
+        const food: Food = { ...picked };
+        delete food.last;
         const entry: LogEntry = {
           id: uid(),
           date,
-          meal,
+          hour,
           name: food.name,
           food,
           serving,
@@ -93,15 +106,15 @@ export const useStore = create<State>()(
           nutrients: nutrientsFor(food, serving, quantity),
           createdAt: Date.now(),
         };
-        set((s) => ({ entries: [...s.entries, entry], recentFoods: pushRecent(s.recentFoods, food) }));
+        set((s) => ({ entries: [...s.entries, entry], recentFoods: pushRecent(s.recentFoods, food, serving, quantity) }));
         return entry;
       },
 
-      quickAdd({ date, meal, name, nutrients }) {
+      quickAdd({ date, hour, name, nutrients }) {
         const entry: LogEntry = {
           id: uid(),
           date,
-          meal,
+          hour,
           name: name?.trim() || 'Quick add',
           nutrients,
           createdAt: Date.now(),
@@ -170,8 +183,13 @@ export const useStore = create<State>()(
     }),
     {
       name: 'macros-store',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
+      migrate: (persisted, version) => {
+        const data = persisted as PersistedData;
+        if (version < 2 && data?.entries) data.entries = data.entries.map(migrateEntry);
+        return data;
+      },
       partialize: ({ profile, goal, entries, weighIns, customFoods, recentFoods, usdaApiKey }) => ({
         profile,
         goal,
@@ -184,6 +202,13 @@ export const useStore = create<State>()(
     },
   ),
 );
+
+/** v1 entries were grouped by meal; v2 places them on the hourly timeline. */
+export function migrateEntry(e: LogEntry & { meal?: string }): LogEntry {
+  if (typeof e.hour === 'number') return e;
+  const { meal, ...rest } = e;
+  return { ...rest, hour: LEGACY_MEAL_HOUR[meal ?? ''] ?? 12 };
+}
 
 export function pickData(s: State): PersistedData {
   const { profile, goal, entries, weighIns, customFoods, recentFoods, usdaApiKey } = s;

@@ -28,19 +28,27 @@ export interface Food {
   base: { unit: 'g' | 'ml' | 'serving'; amount: number };
   nutrients: Nutrients;
   servings: Serving[];
+  /** On recent foods only: the portion logged last time, offered first next time. */
+  last?: { serving: Serving; quantity: number };
 }
 
-export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snacks';
+/** Hour of the day (0–23) an entry sits at on the food log timeline. */
+export type Hour = number;
 
-export const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
+export function hourLabel(h: Hour): string {
+  const suffix = h < 12 ? 'AM' : 'PM';
+  const n = h % 12 === 0 ? 12 : h % 12;
+  return `${n} ${suffix}`;
+}
 
-export const MEAL_LABEL: Record<Meal, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snacks: 'Snacks' };
+/** Where meal-based entries from older versions land on the timeline. */
+export const LEGACY_MEAL_HOUR: Record<string, Hour> = { breakfast: 8, lunch: 12, dinner: 18, snacks: 15 };
 
 export interface LogEntry {
   id: string;
   /** Local calendar day, YYYY-MM-DD. */
   date: string;
-  meal: Meal;
+  hour: Hour;
   name: string;
   /** Totals for this entry, computed when logged. */
   nutrients: Nutrients;

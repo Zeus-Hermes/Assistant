@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -6,12 +6,11 @@ import { Button, Field, parseNum, T } from '@/components/ui';
 import { putFood } from '@/lib/foodCache';
 import { uid } from '@/lib/id';
 import { caloriesFromMacros } from '@/lib/nutrition';
-import type { Food, Meal, Serving } from '@/lib/types';
+import type { Food, Serving } from '@/lib/types';
 import { useStore } from '@/store/useStore';
 import { space } from '@/theme';
 
 export default function CustomFood() {
-  const params = useLocalSearchParams<{ date?: string; meal?: Meal }>();
   const saveCustomFood = useStore((s) => s.saveCustomFood);
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
@@ -62,7 +61,7 @@ export default function CustomFood() {
     }
     saveCustomFood(food);
     putFood(food);
-    router.replace({ pathname: '/food-detail', params: { foodId: food.id, date: params.date, meal: params.meal } });
+    router.replace({ pathname: '/food-detail', params: { foodId: food.id } });
   };
 
   return (

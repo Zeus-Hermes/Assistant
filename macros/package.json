@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@expo-google-fonts/poppins": "^0.4.1",
+    "@expo-google-fonts/unbounded": "^0.4.1",
     "@expo/metro-runtime": "~58.0.15",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -42,7 +44,7 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "export:web": "expo export --platform web",
-    "test:e2e": "expo export --platform web && node e2e/smoke.mjs && node e2e/history.mjs",
+    "test:e2e": "expo export --platform web && node e2e/smoke.mjs && node e2e/history.mjs && node e2e/screens.mjs",
     "format": "prettier --write src __tests__ e2e"
   },
   "private": true,
